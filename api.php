@@ -1,0 +1,1190 @@
+<?php
+
+define('API_VERSION', 1.0);
+require('includes/application_top.php');
+
+
+$db->query($db->link, "CREATE TABLE IF NOT EXISTS " . "user_token_mob_api (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, user_id INT NOT NULL, token VARCHAR(32) NOT NULL )");
+$db->query($db->link, "CREATE TABLE IF NOT EXISTS " . "user_device_mob_api (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, user_id INT NOT NULL, device_token VARCHAR(500) , os_type VARCHAR(20))");
+
+
+
+$get = $_REQUEST;
+global $db;
+
+/**
+ * @api {get}
+ * @apiVersion 0.1.0
+ * @apiName changeOrderDelivery
+ * @apiGroup All
+ *
+ * @apiParam {String} address User's address.
+ * @apiParam {String} city User's  city.
+ * @apiParam {Number} id unique order ID User's device's os_type for firebase notifications.
+ * @apiParam {String} token User's unique token .
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Boolean} response
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *   {
+ *       "response":
+ *       {
+ *          "status": true,
+ *          "version": 1.0
+ *       }
+ *   }
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error": "Cannot change address",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ *
+ */
+
+if ($get['route'] == 'module/apimodule/delivery'){
+    header('Content-Type: application/json');
+    echo apiChangeOrderDelivery();
+}
+
+if ($get['route'] == 'module/apimodule/deletedevicetoken'){
+    header('Content-Type: application/json');
+    echo apiDeleteDeviceToken();
+}
+
+if ($get['route'] == 'module/apimodule/updatedevicetoken' && isset($get['old_token']) && isset($get['new_token'])){
+    header('Content-Type: application/json');
+    echo apiUpdateDeviceToken();
+}
+
+if ($get['route'] == 'module/apimodule/orders'){
+    header('Content-Type: application/json');
+    echo apiGetOrders();
+}
+
+if ($get['route'] == 'module/apimodule/statistic'){
+    header('Content-Type: application/json');
+    echo apiGetStatistic();
+}
+
+if ($get['route'] == 'module/apimodule/getorderinfo'){
+    header('Content-Type: application/json');
+    echo apiGetOrderInfo();
+}
+
+if ($get['route'] == 'module/apimodule/paymentanddelivery'){
+    header('Content-Type: application/json');
+    echo apiGetPaymentAndDelivery();
+}
+
+if ($get['route'] == 'module/apimodule/orderproducts'){
+    header('Content-Type: application/json');
+    echo apiGetOrderProducts();
+}
+
+if ($get['route'] == 'module/apimodule/orderhistory'){
+    header('Content-Type: application/json');
+    echo apiGetOrderHistory();
+}
+
+if ($get['route'] == 'module/apimodule/clients'){
+    header('Content-Type: application/json');
+    echo apiGetClients();
+}
+
+if ($get['route'] == 'module/apimodule/clientinfo'){
+    header('Content-Type: application/json');
+    echo apiGetClientInfo();
+}
+
+if ($get['route'] == 'module/apimodule/clientorders'){
+    header('Content-Type: application/json');
+    echo apiGetClientOrders();
+}
+
+if ($get['route'] == 'module/apimodule/products'){
+    header('Content-Type: application/json');
+    echo apiGetProducts();
+}
+
+if ($get['route'] == 'module/apimodule/productinfo'){
+    header('Content-Type: application/json');
+    echo apiGetProductInfo();
+}
+
+if ($get['route'] == 'module/apimodule/changestatus' && isset($get['token'])){
+    header('Content-Type: application/json');
+    echo apiChangeStatus();
+}
+
+/**
+ * @api api.php?route=Login
+ * @apiVersion 0.1.0
+ * @apiName Login
+ * @apiGroup All
+ *
+ * @apiParam {String} username User unique username.
+ * @apiParam {Number} password User's  password.
+ * @apiParam {String} os_type User's device's os_type for firebase notifications.
+ * @apiParam {String} device_token User's device's token for firebase notifications.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {String} token  Token.
+ * @apiSuccess {String} token  Token.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *   {
+ *       "response":
+ *       {
+ *          "token": "e9cf23a55429aa79c3c1651fe698ed7b",
+ *          "version": 1.0,
+ *          "status": true
+ *       }
+ *   }
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error": "Incorrect username or password",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ *
+ */
+
+if ($get['route'] == 'Login' && isset($get['username']) && isset($get['password']) && !isset($get['token']))
+{
+
+    $email_address = zen_db_prepare_input($get['username']);
+    $password = zen_db_prepare_input($get['password']);
+    $loginAuthorized = false;
+
+    // Check if email exists
+    $check_customer_query = "SELECT customers_id, customers_firstname, customers_lastname, customers_password,
+                                    customers_email_address, customers_default_address_id,
+                                    customers_authorization, customers_referral
+                           FROM " . TABLE_CUSTOMERS . "
+                           WHERE customers_email_address = :emailAddress";
+
+    $check_customer_query = $db->bindVars($check_customer_query, ':emailAddress', $email_address, 'string');
+    $check_customer = $db->Execute($check_customer_query);
+    $customer_id = (int)$check_customer->fields['customers_id'];
+    if (!$check_customer->RecordCount()) {
+        $error = true;
+        $messageStack->add('login', TEXT_LOGIN_ERROR);
+
+        echo json_encode(['error' => 'Incorrect email or password', 'version' => API_VERSION, 'status' => false]);
+        return json_encode(['error' => 'Incorrect email or password', 'version' => API_VERSION, 'status' => false]);
+
+    }
+    else {
+        $dbPassword = $check_customer->fields['customers_password'];
+
+        // Check whether the password is good
+        $check_user_has_token = mysqli_fetch_assoc(mysqli_query($db->link, "SELECT token FROM user_token_mob_api WHERE user_id=$customer_id"));
+        if (zen_validate_password($password, $dbPassword)==true && !$check_user_has_token){
+
+            $token = md5(mt_rand());
+
+            $give_token_query = "INSERT INTO user_token_mob_api (user_id, token) VALUES ( $customer_id, '$token')";
+
+
+            mysqli_query($db->link, $give_token_query);
+            if (isset($get['os_type']) && isset($get['device_token'])){
+                $os_type = $get['os_type'];
+                $device_token =$get['device_token'];
+
+                $device_token_exist_query = "SELECT device_token FROM user_device_mob_api WHERE device_token='$device_token'";
+                $device_token_exist = mysqli_fetch_assoc(mysqli_query($db->link, $device_token_exist_query));
+
+                if($device_token_exist == null){
+                    $update_device_query = "INSERT INTO user_device_mob_api (user_id, device_token, os_type) VALUES ( $customer_id, '$device_token', '$os_type')";
+
+                    mysqli_query($db->link, $update_device_query);
+                }
+            }
+
+            echo json_encode(['response' => ['token' => $token], 'version' => API_VERSION, 'status' => true]);
+            return json_encode(['response' => ['token' => $token], 'version' => API_VERSION, 'status' => true]);
+        }
+        elseif (zen_validate_password($password, $dbPassword)==true && $check_user_has_token){
+
+            $token = md5(mt_rand());
+
+            $update_token_query = "UPDATE user_token_mob_api SET token='$token' WHERE user_id='$customer_id'";
+
+
+            mysqli_query($db->link, $update_token_query);
+            if (isset($get['os_type']) && isset($get['device_token'])){
+                $os_type = $get['os_type'];
+                $device_token =$get['device_token'];
+
+                $device_token_exist_query = "SELECT device_token FROM user_device_mob_api WHERE device_token='$device_token'";
+                $device_token_exist = mysqli_fetch_assoc(mysqli_query($db->link, $device_token_exist_query));
+
+                if($device_token_exist == null){
+                    $update_device_query = "INSERT INTO user_device_mob_api (user_id, device_token, os_type) VALUES ( $customer_id, '$device_token', '$os_type')";
+
+                    mysqli_query($db->link, $update_device_query);
+                }
+            }
+
+            echo json_encode(['response' => ['token' => $token], 'version' => API_VERSION, 'status' => true]);
+            return json_encode(['response' => ['token' => $token], 'version' => API_VERSION, 'status' => true]);
+        }
+        else{
+            echo json_encode(['error' => 'Incorrect email or password', 'version' => API_VERSION, 'status' => false]);
+            return json_encode(['error' => 'Incorrect email or password', 'version' => API_VERSION, 'status' => false]);
+        }
+
+
+    }
+}
+
+
+
+
+function apiGetClients(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+
+    else {
+        if(!isset($get['limit'])) {
+            $get['limit'] = 10;
+        }
+        if(!isset($get['page'])){
+            $get['page'] = 1;
+        }
+
+        $orders_on_page = $get['limit'] * $get['page'] - $get['limit'];
+        $limit_per_page = $get['limit'];
+
+        $filters = array();
+
+        if (($get['fio']))
+            $filters['fio'] = $get['fio'];
+        if (($get['sort'])) {
+            if($get['sort'] == 'sum'){
+                $filters['sort'] = 'sum';
+            }
+            else if($get['sort'] == 'quantity'){
+                $filters['sort'] = 'quantity';
+            }
+            else if($get['sort'] == 'date_added'){
+                $filters['sort'] = 'c.customers_id';
+            }
+
+        }
+        $clients = array();
+        $sql = "SELECT c.customers_id as client_id, 
+         CONCAT(c.customers_firstname, ' ', c.customers_lastname) as fio, 
+         o.currency as currency_code 
+        FROM customers c 
+        INNER JOIN orders o ON c.customers_id=o.customers_id 
+        WHERE c.customers_id>0 ";
+
+
+        if (isset($filters['fio'])){
+            $name = explode(' ', $filters['fio']);
+            $sql .= "AND c.customers_firstname LIKE \"%$name[0]%\" AND c.customers_lastname LIKE \"%$name[1]%\" ";
+        }
+
+        if ($filters['sort'] == 'c.customers_id'){
+            $sort = $filters['sort'];
+            $sql .= "ORDER BY $sort ";
+        }
+
+
+        $sql .= "LIMIT $orders_on_page, $limit_per_page ";
+
+        $orders_query = mysqli_query($db->link, $sql);
+
+        $i = 0;
+        while ($row = $orders_query->fetch_assoc()) {
+
+            if($row['currency_code']){
+
+                $client_id = $row['client_id'];
+                $row['total'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM orders WHERE customers_id=$client_id"))[0];
+                $row['quantity'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(order_total) FROM orders WHERE customers_id=$client_id"))[0];
+                if ($client_id != $clients[$i-1]['client_id']) {
+                    array_push($clients, $row);
+                }
+            }
+            $i++;
+        }
+
+
+    }
+    if ($filters['sort'] == 'sum') {
+
+
+        for ($j = 0; $j < count($clients) - 1; $j++){
+            for ($i = 0; $i < count($clients) - $j - 1; $i++){
+
+                if ($clients[$i]['total'] > $clients[$i+1]['total']){
+
+                    $tmp_var = $clients[$i+1]['total'];
+                    $clients[$i+1]['total'] = $clients[$i]['total'];
+                    $clients[$i]['total'] = $tmp_var;
+                }
+            }
+        }
+    }
+    else if ($filters['sort'] == 'quantity') {
+        for ($j = 0; $j < count($clients) - 1; $j++){
+            for ($i = 0; $i < count($clients) - $j - 1; $i++){
+
+                if ($clients[$i]['quantity'] > $clients[$i+1]['quantity']){
+
+                    $tmp_var = $clients[$i+1]['quantity'];
+                    $clients[$i+1]['quantity'] = $clients[$i]['quantity'];
+                    $clients[$i]['quantity'] = $tmp_var;
+                }
+            }
+        }
+
+    }
+
+    if($clients[0]['client_id'] != null) {
+
+
+        $response = (['response' => ['clients' => ($clients)],
+            'status' => true,
+            'version' => API_VERSION]);
+
+
+        $end = json_encode($response);
+
+        //header('Content-Type: application/json');
+        //echo($end);
+        return $end;
+    }
+    else {
+        //header('Content-Type: application/json');
+        //echo json_encode(['status' => false, 'version' => API_VERSION]);
+        return json_encode(['status' => false, 'version' => API_VERSION]);
+    }
+
+}
+
+function apiDeleteDeviceToken(){
+    $get = $_REQUEST;
+    global $db;
+
+    $old_token = $get['old_token'];
+    if(mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM user_device_mob_api WHERE device_token='$old_token'"))){
+        mysqli_query($db->link, "DELETE FROM user_device_mob_api WHERE device_token='$old_token'");
+        //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
+        return json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
+    }
+    else{
+        //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
+        return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
+    }
+}
+
+function apiUpdateDeviceToken(){
+    $get = $_REQUEST;
+    global $db;
+
+    $old_token = $get['old_token'];
+    $new_token = $get['new_token'];
+    if(mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM user_device_mob_api WHERE device_token='$old_token'"))){
+        mysqli_query($db->link, "UPDATE user_device_mob_api SET device_token='$new_token' WHERE device_token='$old_token'");
+        //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
+        return json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
+    }
+    else{
+        //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
+        return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
+    }
+}
+
+function apiGetOrders(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+
+    else {
+        if(!isset($get['limit'])) {
+            $get['limit'] = 10;
+        }
+        if(!isset($get['page'])){
+            $get['page'] = 1;
+        }
+
+        $orders_on_page = $get['limit'] * $get['page'] - $get['limit'];
+        $limit_per_page = $get['limit'];
+
+        $filters = array();
+        $statuses = getStatuses();
+
+        if (($get['fio']))
+            $filters['fio'] = $get['fio'];
+        if (($get['order_status_id']))
+            $filters['order_status_id'] = $get['order_status_id'];
+        if (($get['min_price']))
+            $filters['min_price'] = $get['min_price'];
+        if ($get['max_price'])
+            $filters['max_price'] = $get['max_price'];
+        if (($get['date_min']))
+            $filters['date_min'] = $get['date_min'];
+        if (($get['date_max']))
+            $filters['date_max'] = $get['date_max'];
+
+        $orders = array();
+        $sql = "SELECT o.orders_id as order_id, 
+        o.orders_id as order_number, 
+        o.customers_name as fio, 
+        s.orders_status_name as status, 
+        o.order_total as total, 
+        o.date_purchased as date_added, 
+        o.currency as currency_code 
+        FROM orders o ";
+        $sql .= "INNER JOIN orders_status s ON o.orders_status=s.orders_status_id WHERE o.orders_id>0 ";
+
+
+        if (($filters['fio'])){
+            $name = $filters['fio'];
+            $sql .= "AND o.customers_name LIKE '%$name%' ";
+        }
+
+        if (($filters['order_status_id'])){
+            $status_name  = $filters['order_status_id'];
+            //$status_id_to_name = mysqli_fetch_row(mysqli_query($db->link, "SELECT orders_status_id FROM orders_status WHERE orders_status_name='$status_name'"))[0];
+
+            $sql .= "AND o.orders_status=$status_name ";
+        }
+
+        if (($filters['min_price'])){
+            $filter_status_id = $filters['min_price'];
+            $sql .= "AND o.order_total>$filter_status_id ";
+        }
+
+        if (($filters['max_price'])){
+            $status_id = $filters['max_price'];
+            $sql .= "AND o.order_total<$status_id ";
+        }
+
+        if (($filters['date_min'])){
+            $status_id = date('y-m-d', strtotime($filters['date_min']));
+            $sql .= "AND DATE_FORMAT(o.date_purchased,'%y-%m-%d') >= '$status_id' ";
+        }
+
+        if (($filters['date_max'])){
+            $status_id = date('y-m-d', strtotime($filters['date_max']));
+            $sql .= "AND DATE_FORMAT(o.date_purchased,'%y-%m-%d') <= '$status_id' ";
+        }
+
+        $sql .= "LIMIT $orders_on_page, $limit_per_page ";
+
+        $orders_query = mysqli_query($db->link, $sql);
+
+
+
+        while ($row = $orders_query->fetch_assoc()) {
+            array_push($orders, $row);
+        }
+
+        if($orders) {
+
+            $total_quantity = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM orders"))[0];
+            $max_price = mysqli_fetch_row(mysqli_query($db->link, "SELECT MAX(order_total) FROM orders"))[0];
+
+            $response = (['response' => ['orders' => ($orders),
+                'statuses' => ($statuses),
+                'currency_code' => getCurrency(),
+                'total_quantity' => (int)$total_quantity,
+                'total_sum' => getTotalSum(),
+                'max_price' => $max_price],
+                'status' => true,
+                'version' => API_VERSION]);
+
+
+            $end = json_encode($response);
+
+            header('Content-Type: application/json');
+            //echo($end);
+            return $end;
+        }
+        else {
+            header('Content-Type: application/json');
+            //echo json_encode(['status' => false, 'version' => API_VERSION]);
+            return json_encode(['status' => false, 'version' => API_VERSION]);
+        }
+
+    }
+}
+
+function apiGetStatistic(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else {
+        $orders = array();
+        $xAxis = array();
+        $clients = array();
+        if (!isset($get['filter']))
+            $get['filter'] = 'day';
+        if (isset($get['filter']) && ($get['filter'] == 'day' || $get['filter'] == 'week' || $get['filter'] == 'month' || $get['filter'] == 'year')) {
+            if ($get['filter'] == 'day') {
+                for ($i = 0; $i < 24; $i++) {
+                    array_push($xAxis, $i);
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE DAY (date_purchased)= DAY (NOW()) AND HOUR (date_purchased) = $i")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE DAY(customers_info_date_account_created)=DAY(NOW()) AND HOUR(customers_info_date_account_created) = $i")));
+                }
+            }
+            if ($get['filter'] == 'week') {
+
+                for ($i = 1; $i <= 7; $i++) {
+                    array_push($xAxis, $i);
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE WEEKOFYEAR(date_purchased)=WEEKOFYEAR(NOW()) AND WEEKDAY(date_purchased) = $i-1")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE WEEKOFYEAR(customers_info_date_account_created)=WEEKOFYEAR(NOW()) AND WEEKDAY(customers_info_date_account_created) = $i-1")));
+                }
+            }
+            if ($get['filter'] == 'month') {
+                $days = date('t');
+                for ($i = 1; $i <= $days; $i++) {
+                    array_push($xAxis, $i);
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE MONTH (date_purchased)=MONTH (NOW()) AND DAY (date_purchased) = $i")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE MONTH (customers_info_date_account_created)=MONTH (NOW()) AND DAY (customers_info_date_account_created) = $i")));
+                }
+            }
+            if ($get['filter'] == 'year') {
+                for ($i = 1; $i <= 12; $i++) {
+                    array_push($xAxis, $i);
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE YEAR(date_purchased)=YEAR(NOW()) AND MONTH (date_purchased) = $i")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE YEAR (customers_info_date_account_created)=YEAR (NOW()) AND MONTH (customers_info_date_account_created) = $i")));
+                }
+            }
+            $total_sales = getTotalSum();
+            $sale_year_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM orders WHERE YEAR(date_purchased)=YEAR(NOW())"))[0];
+            $currency = getCurrency();
+            $orders_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM orders"))[0];
+            $clients_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM customers"))[0];
+
+
+
+//            echo json_encode(["response" => ['xAxis' => $xAxis, 'clients' => $clients, 'orders' => $orders, 'total_sales' => $total_sales,
+//                'sale_year_total' => $sale_year_total, 'currency_code' => $currency, 'orders_total' => $orders_total,
+//                'clients_total' => $clients_total],
+//                "status" => true, 'version' => API_VERSION]);
+            return json_encode(["response" => ['xAxis' => $xAxis, 'clients' => $clients, 'orders' => $orders, 'total_sales' => $total_sales,
+                'sale_year_total' => $sale_year_total, 'currency_code' => $currency, 'orders_total' => $orders_total,
+                'clients_total' => $clients_total],
+                "status" => true, 'version' => API_VERSION]);
+        }
+        else{
+
+            //echo json_encode(['error' => 'unknown filter set', 'status' => false, 'version' => API_VERSION]);
+            return json_encode(['error' => 'unknown filter set', 'status' => false, 'version' => API_VERSION]);
+        }
+
+    }
+
+}
+
+function apiGetOrderInfo(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else if (isset($get['order_id'])){
+        $order_id = $get['order_id'];
+        $sql = "SELECT o.orders_id as order_number,
+         o.currency as currency_code,
+         o.customers_name as fio, 
+         o.customers_email_address as email,
+         o.customers_telephone as telephone, 
+         o.date_purchased as date_add, 
+         o.order_total as total, 
+         s.orders_status_name as status FROM orders o 
+         INNER JOIN orders_status s ON o.orders_status=s.orders_status_id 
+         WHERE o.orders_id=$order_id";
+
+        $order_info = array();
+
+        $order = (mysqli_query($db->link, $sql));
+        $order_info = mysqli_fetch_assoc($order);
+        if ($order_info) {
+            $order_info['statuses'] = getStatuses();
+            $response = json_encode(['response' => $order_info, 'status' => true, 'version' => API_VERSION]);
+        }
+        else {
+            $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
+        }
+
+        //echo $response;
+        return $response;
+    }
+    else{
+        $response = json_encode(['error' => "cannot find order with id = 0", 'status' => false, 'version' => API_VERSION]);
+
+        //echo $response;
+        return $response;
+    }
+}
+
+function apiGetPaymentAndDelivery(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else {
+        if (isset($get['order_id'])) {
+            $order_id = $get['order_id'];
+            $sql = "SELECT payment_method, 
+            shipping_method, 
+            delivery_street_address, 
+            delivery_city, 
+            delivery_state, 
+            delivery_country FROM orders 
+             WHERE orders_id=$order_id";
+
+            $orders_info = array();
+
+            $order = mysqli_fetch_assoc(mysqli_query($db->link, $sql));
+            $orders_info['payment_method'] = $order['payment_method'];
+            $orders_info['shipping_method'] = $order['shipping_method'];
+            $orders_info['shipping_address'] = $order['delivery_street_address'] . ', '
+                . $order['delivery_city'] . ', '
+                . $order['delivery_state'] . ', '
+                . $order['delivery_country'] . '.';
+
+            if ($orders_info['payment_method']) {
+
+                $response = json_encode(['response' => $orders_info, 'status' => true, 'version' => API_VERSION]);
+            } else {
+                $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
+            }
+
+            //echo $response;
+            return $response;
+        }
+
+        else{
+            $response = json_encode(['error' => "cannot find order with id = 0", 'status' => false, 'version' => API_VERSION]);
+
+            //echo $response;
+            return $response;
+        }
+    }
+}
+
+function apiGetOrderProducts(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else if (isset($get['order_id'])){
+        $order_id = $get['order_id'];
+        $sql1 = "SELECT p.products_image as image, 
+        o.products_name as name, 
+        o.products_model as model,
+        o.products_quantity as quantity, 
+        o.products_price as price, 
+        o.products_id as product_id
+        FROM orders_products o 
+         INNER JOIN products p ON p.products_id=o.products_id
+         WHERE o.orders_id=$order_id";
+
+        $order_info = array();
+
+        $order = (mysqli_query($db->link, $sql1));
+        $i = 0;
+        while ($row = $order->fetch_assoc()) {
+            array_push($order_info, $row);
+            $order_info[$i]['image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$order_info[$i]['image'];
+            $i++;
+        }
+        if ($order_info) {
+
+            $total_order_price = array();
+            $total_order_price['total_discount'] = 0;
+            $total_order_price['total_price'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT SUM(final_price*products_quantity) FROM orders_products WHERE orders_id=$order_id "))[0];
+            $total_order_price['currency_code'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT currency FROM orders WHERE orders_id=$order_id"))[0];
+            $total_order_price['shipping_price'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT o.order_total-SUM(p.final_price*p.products_quantity) FROM orders o INNER JOIN orders_products p ON o.orders_id=p.orders_id WHERE o.orders_id=$order_id"))[0];
+            $total_order_price['total'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT order_total FROM orders WHERE orders_id=$order_id"))[0];
+
+            $response = json_encode(['response' => ['products' => $order_info, 'total_order_price' => $total_order_price], 'status' => true, 'version' => API_VERSION]);
+        }
+        else {
+            $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
+        }
+
+        //echo $response;
+        return $response;
+    }
+    else{
+        $response = json_encode(['error' => "cannot find order with id = 0", 'status' => false, 'version' => API_VERSION]);
+
+        //echo $response;
+        return $response;
+    }
+}
+
+function apiGetOrderHistory(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else {
+        if (isset($get['order_id'])){
+            $order_id = $get['order_id'];
+
+            $sql = "SELECT h.orders_status_name as name, 
+             s.orders_status_id as order_status_id, 
+             s.date_added as date_add, 
+             s.comments as comment FROM orders_status h 
+             INNER JOIN orders_status_history s ON h.orders_status_id=s.orders_status_id 
+             WHERE s.orders_id=$order_id";
+
+            $order_info = array();
+            $order_info['orders'] = array();
+
+            $history_query = (mysqli_query($db->link, $sql));
+
+            while ($row = $history_query->fetch_assoc()){
+
+                array_push($order_info['orders'], $row);
+            }
+
+            if ($order_info['orders'][0]) {
+                $order_info['statuses'] = getStatuses();
+                $response = json_encode(['response' => $order_info, 'status' => true, 'version' => API_VERSION]);
+            }
+            else {
+                $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
+            }
+
+            //echo $response;
+            return $response;
+        }
+        else{
+            $response = json_encode(['error' => "cannot find order with id = ", 'status' => false, 'version' => API_VERSION]);
+
+            //echo $response;
+            return $response;
+        }
+    }
+}
+
+function apiGetClientInfo(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+        echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+
+    else {
+        $client_id = $get['client_id'];
+
+
+        $sql = "SELECT c.customers_id as client_id, 
+         CONCAT(c.customers_firstname, ' ', c.customers_lastname) as fio, 
+         SUM(o.order_total) total,
+         COUNT(o.order_total) quantity,
+         c.customers_email_address as email,
+         c.customers_telephone as telephone,
+         (SELECT COUNT(*) FROM orders WHERE orders_status=3 AND customers_id=$client_id  ) as completed,
+         o.currency as currency_code
+        FROM customers c 
+        INNER JOIN orders o ON c.customers_id=o.customers_id 
+        WHERE c.customers_id=$client_id";
+
+        $client = mysqli_fetch_assoc(mysqli_query($db->link, $sql));
+
+        if($client['total']) {
+
+            $response = (['response' => $client,
+                'status' => true,
+                'version' => API_VERSION]);
+
+
+            $end = json_encode($response);
+
+            echo($end);
+            return $end;
+        }
+        else {
+
+            echo json_encode(['status' => false, 'version' => API_VERSION]);
+            return json_encode(['status' => false, 'version' => API_VERSION]);
+        }
+    }
+}
+
+function apiGetClientOrders(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+        echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+
+    else {
+        $client_id = $get['client_id'];
+
+        $filters = '';
+
+        if (isset($get['sort'])) {
+            if($get['sort'] == 'total'){
+                $filter = 'o.order_total';
+            }
+            else if($get['sort'] == 'date_added'){
+                $filter = 'date_added';
+            }
+            else if($get['sort'] == 'completed'){
+                $filter = 'COUNT(SELECT * FROM orders WHERE orders_status=3)';
+            }
+
+        }
+        $orders = array();
+        $sql = "SELECT o.orders_id as order_id, 
+         o.orders_id as order_number, 
+         s.orders_status_name as status, 
+         o.currency as currency_code,
+         o.order_total as total, 
+         o.date_purchased as date_added
+        FROM orders o 
+        INNER JOIN orders_status s ON o.orders_status=s.orders_status_id 
+        WHERE o.customers_id=$client_id ";
+        if($filter)
+            $sql .= "ORDER BY $filter DESC";
+
+        $orders_query = mysqli_query($db->link, $sql);
+
+
+
+        while ($row = $orders_query->fetch_assoc()) {
+            array_push($orders, $row);
+        }
+
+        if($orders[0]['order_id'] != null) {
+
+
+            $response = (['response' => ['orders' => ($orders)],
+                'status' => true,
+                'version' => API_VERSION]);
+
+
+            $end = json_encode($response);
+
+            echo($end);
+            return $end;
+        }
+        else {
+
+            echo json_encode(['status' => false, 'version' => API_VERSION]);
+            return json_encode(['status' => false, 'version' => API_VERSION]);
+        }
+    }
+}
+
+function apiGetProducts(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else{
+
+        if(!isset($get['limit'])) {
+            $get['limit'] = 10;
+        }
+        if(!isset($get['page'])){
+            $get['page'] = 1;
+        }
+
+        $orders_on_page = $get['limit'] * $get['page'] - $get['limit'];
+        $limit_per_page = $get['limit'];
+
+        $sql = "SELECT p.products_image as image, 
+        d.products_name as name, 
+        p.products_model as model,
+        p.products_quantity as quantity, 
+        p.products_price as price, 
+        p.products_id as product_id
+        FROM products p 
+        INNER JOIN products_description d ON p.products_id=d.products_id ";
+
+        if(isset($get['name'])){
+            $name = trim($get['name']);
+            $sql .= "WHERE d.products_name LIKE '%$name%' ";
+        }
+        $sql .= "LIMIT $orders_on_page, $limit_per_page ";
+
+        $products = array();
+
+        $product = (mysqli_query($db->link, $sql));
+        $i = 0;
+        while ($row = $product->fetch_assoc()) {
+            array_push($products, $row);
+            $products[$i]['image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$products[$i]['image'];
+            $products[$i]['currency_code'] = getCurrency();
+            $i++;
+        }
+
+        if ($products) {
+
+            $response = json_encode(['response' => ['products' => $products], 'status' => true, 'version' => API_VERSION]);
+        }
+        else {
+            $response = json_encode(['error' => "Not one product not found", 'status' => false, 'version' => API_VERSION]);
+        }
+
+        //echo $response;
+        return $response;
+
+    }
+}
+
+function apiGetProductInfo(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else{
+
+        $product_id = $get['product_id'];
+
+        $sql = "SELECT p.products_image as main_image, 
+        d.products_name as name, 
+        p.products_model as model,
+        p.products_quantity as quantity, 
+        p.products_price as price, 
+        p.products_id as product_id,
+        d.products_description as description
+        FROM products p 
+        INNER JOIN products_description d ON p.products_id=d.products_id 
+        WHERE p.products_id=$product_id";
+
+
+        $products = array();
+        $products['images'] = array();
+        $product = (mysqli_query($db->link, $sql));
+
+        if ($row = $product->fetch_assoc()) {
+            array_push($products, $row);
+            $products[0]['main_image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$products[0]['main_image'];
+            $products[0]['images'][] = $products[0]['main_image'];
+            $products[0]['currency_code'] = getCurrency();
+
+            $response = json_encode(['response' => $products[0], 'status' => true, 'version' => API_VERSION]);
+
+        }
+
+
+        else {
+            $response = json_encode(['error' => "Not one product not found", 'status' => false, 'version' => API_VERSION]);
+        }
+
+        //echo $response;
+        return $response;
+
+    }
+}
+
+function apiChangeStatus(){
+    $get = $_REQUEST;
+    global $db;
+
+    if (validToken($get['token'])){
+
+        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+    }
+    else{
+        $comment = '';
+        $order_id = $get['order_id'];
+        $status_id = $get['status_id'];
+        $inform = 0;
+        if(isset ($get['inform'])){
+            $inform = $get['inform'];
+        }
+
+        if(isset ($get['comment'])){
+            $comment = $get['comment'];
+        }
+        $query_update_order_status = "UPDATE orders SET orders_status=$status_id WHERE orders_id=$order_id";
+        $query_update_status_history = "INSERT INTO orders_status_history (orders_id, orders_status_id, date_added, customer_notified, comments)
+                                        VALUES ($order_id, $status_id, NOW(), $inform, '$comment')";
+
+        $update_status = mysqli_query($db->link, $query_update_order_status);
+        $update_status_history = mysqli_query($db->link, $query_update_status_history);
+
+        if ($update_status && $update_status_history){
+            $query_answer = "SELECT s.orders_status_name as name, h.date_added as date_added FROM orders_status_history h INNER JOIN orders_status s ON h.orders_status_id=s.orders_status_id WHERE h.orders_id=$order_id ORDER BY h.orders_status_history_id DESC LIMIT 1";
+
+            $answer = mysqli_fetch_assoc(mysqli_query($db->link, $query_answer));
+
+            $response = json_encode(['response' => $answer, 'status' => true, 'version' => API_VERSION]);
+        }
+        else {
+            $response = json_encode(['error' => "Missing some params", 'status' => false, 'version' => API_VERSION]);
+        }
+
+        //echo $response;
+        return $response;
+
+    }
+}
+
+function apiChangeOrderDelivery(){
+    $get = $_REQUEST;
+    global $db;
+
+    {
+        $token = $get['token'];
+        $order_id = (int)$get['order_id'];
+        $city = mysqli_fetch_row(mysqli_query($db->link, "SELECT delivery_city FROM orders WHERE orders_id=$order_id"))[0];
+        $address = mysqli_fetch_row(mysqli_query($db->link, "SELECT delivery_address FROM orders WHERE orders_id=$order_id"))[0];
+
+        if (isset($get['city']))
+            $city = $get['city'];
+        if (isset($get['address']))
+            $address = $get['address'];
+
+        if (validToken($token) == null) {
+            if (mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM orders  WHERE orders_id=$order_id"))) {
+                $change_order_delivery_query = "UPDATE orders SET delivery_street_address='$address', delivery_city='$city' WHERE orders_id=$order_id";
+
+                $query = mysqli_query($db->link, $change_order_delivery_query);
+
+
+                //echo json_encode(['status' => true, 'version' => API_VERSION]);
+                return json_encode(['status' => true, 'version' => API_VERSION]);
+            } else {
+
+                //echo json_encode(['error' => 'Can not change the address', 'status' => false, 'version' => API_VERSION]);
+                return json_encode(['error' => 'Can not change the address', 'status' => false, 'version' => API_VERSION]);
+            }
+        } else {
+
+            //echo json_encode(['error' => validToken($token), 'status' => false, 'version' => API_VERSION]);
+
+            return json_encode(['error' => validToken($token), 'status' => false, 'version' => API_VERSION]);
+        }
+    }
+}
+
+
+
+
+
+function validToken($token)
+{
+    global $db;
+    if (!isset($_REQUEST['token']) || $_REQUEST['token'] == '') {
+        $error = 'You need to be logged!';
+    } else {
+
+
+        $exist_token = mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM user_token_mob_api WHERE token='$token'"));
+        if ($exist_token){
+            $error = null;
+        } else {
+            $error = 'Your token is no longer relevant!';
+        }
+    }
+
+    return $error;
+}
+
+function getTotalOrders($data = array())
+{
+    global $db;
+    if (isset($data['filter'])) {
+        $sql = "SELECT date_added FROM `" . DB_PREFIX . "order` WHERE order_status_id > '0'";
+
+        if ($data['filter'] == 'day') {
+            $sql .= " AND DATE(date_added) = DATE(NOW())";
+        } elseif ($data['filter'] == 'week') {
+            $date_start = strtotime('-' . date('w') . ' days');
+            $sql .= "AND WEEK(date_added) = WEEK(NOW()) ";
+
+        } elseif ($data['filter'] == 'month') {
+            $sql .= "AND MONTH(date_added) = MONTH(NOW()) ";
+
+        } elseif ($data['filter'] == 'year') {
+            $sql .= "AND YEAR(date_added) = YEAR(NOW())";
+        } else {
+            return false;
+        }
+    } else {
+        $sql = "SELECT COUNT(*) FROM `" . DB_PREFIX . "order` WHERE order_status_id > '0'";
+    }
+
+    $query = mysqli_query($db->link, $sql);
+
+    return $query;
+}
+
+function getStatuses(){
+    global $db;
+
+    $statuses = array();
+    $query = "SELECT orders_status_name as name, orders_status_id as order_status_id, language_id FROM orders_status";
+
+    $resp = mysqli_query($db->link, $query);
+    while ($row = $resp->fetch_assoc()){
+        array_push($statuses, $row);
+    }
+    return $statuses;
+}
+
+function getCurrency(){
+    global $db;
+    return mysqli_fetch_row(mysqli_query($db->link, "SELECT configuration_value FROM configuration WHERE configuration_title='Default Currency'"))[0];
+}
+
+function getTotalSum(){
+    global $db;
+    return mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM orders"))[0];
+}
+
