@@ -61,6 +61,100 @@ if ($get['route'] == 'module/apimodule/updatedevicetoken' && isset($get['old_tok
     echo apiUpdateDeviceToken();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/orders  getOrders
+ * @apiName GetOrders
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Number} page number of the page.
+ * @apiParam {Number} limit limit of the orders for the page.
+ * @apiParam {Array} filter array of the filter params.
+ * @apiParam {String} filter[fio] full name of the client.
+ * @apiParam {Number} filter[order_status_id] unique id of the order.
+ * @apiParam {Number} filter[min_price] min price of order.
+ * @apiParam {Number} filter[max_price] max price of order.
+ * @apiParam {Date} filter[date_min] min date adding of the order.
+ * @apiParam {Date} filter[date_max] max date adding of the order.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Array} orders  Array of the orders.
+ * @apiSuccess {Array} statuses  Array of the order statuses.
+ * @apiSuccess {Number} order_id  ID of the order.
+ * @apiSuccess {Number} order_number  Number of the order.
+ * @apiSuccess {String} fio     Client's FIO.
+ * @apiSuccess {String} status  Status of the order.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {String} order[currency_code] currency of the order.
+ * @apiSuccess {Number} total  Total sum of the order.
+ * @apiSuccess {Date} date_added  Date added of the order.
+ * @apiSuccess {Date} total_quantity  Total quantity of the orders.
+ *
+ *
+ *
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *   "Response"
+ *   {
+ *      "orders":
+ *      {
+ *            {
+ *             "order_id" : "1",
+ *             "order_number" : "1",
+ *             "fio" : "Anton Kiselev",
+ *             "status" : "Сделка завершена",
+ *             "total" : "106.00",
+ *             "date_added" : "2016-12-09 16:17:02",
+ *             "currency_code": "RUB"
+ *             },
+ *            {
+ *             "order_id" : "2",
+ *             "order_number" : "2",
+ *             "fio" : "Vlad Kochergin",
+ *             "status" : "В обработке",
+ *             "total" : "506.00",
+ *             "date_added" : "2016-10-19 16:00:00",
+ *             "currency_code": "RUB"
+ *             }
+ *       },
+ *       "statuses" :
+ *       {
+ *             {
+ *              "name": "Отменено",
+ *              "order_status_id": "7",
+ *              "language_id": "1"
+ *              },
+ *             {
+ *              "name": "Сделка завершена",
+ *              "order_status_id": "5",
+ *              "language_id": "1"
+ *              },
+ *              {
+ *               "name": "Ожидание",
+ *               "order_status_id": "1",
+ *               "language_id": "1"
+ *               }
+ *       },
+ *       "currency_code": "RUB",
+ *       "total_quantity": 50,
+ *       "total_sum": "2026.00",
+ *       "max_price": "1405.00"
+ *   },
+ *   "Status" : true,
+ *   "version": 1.0
+ * }
+ * @apiErrorExample Error-Response:
+ *
+ * {
+ *      "version": 1.0,
+ *      "Status" : false
+ *
+ * }
+ *
+ *
+ */
 if ($get['route'] == 'module/apimodule/orders'){
     header('Content-Type: application/json');
     echo apiGetOrders();
@@ -71,21 +165,258 @@ if ($get['route'] == 'module/apimodule/statistic'){
     echo apiGetStatistic();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/getorderinfo  getOrderInfo
+ * @apiName getOrderInfo
+ * @apiGroup All
+ *
+ * @apiParam {Number} order_id unique order ID.
+ * @apiParam {Token} token your unique token.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Number} order_number  Number of the order.
+ * @apiSuccess {String} fio     Client's FIO.
+ * @apiSuccess {String} status  Status of the order.
+ * @apiSuccess {String} email  Client's email.
+ * @apiSuccess {Number} phone  Client's phone.
+ * @apiSuccess {Number} total  Total sum of the order.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Date} date_added  Date added of the order.
+ * @apiSuccess {Array} statuses  Statuses list for order.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *      "response" :
+ *          {
+ *              "order_number" : "6",
+ *              "currency_code": "RUB",
+ *              "fio" : "Anton Kiselev",
+ *              "email" : "client@mail.ru",
+ *              "telephone" : "056 000-11-22",
+ *              "date_added" : "2016-12-24 12:30:46",
+ *              "total" : "1405.00",
+ *              "status" : "Сделка завершена",
+ *              "statuses" :
+ *                  {
+ *                         {
+ *                             "name": "Отменено",
+ *                             "order_status_id": "7",
+ *                             "language_id": "1"
+ *                         },
+ *                         {
+ *                             "name": "Сделка завершена",
+ *                             "order_status_id": "5",
+ *                             "language_id": "1"
+ *                          },
+ *                          {
+ *                              "name": "Ожидание",
+ *                              "order_status_id": "1",
+ *                              "language_id": "1"
+ *                           }
+ *                    }
+ *          },
+ *      "status" : true,
+ *      "version": 1.0
+ * }
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error" : "Can not found order with id = 5",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ */
 if ($get['route'] == 'module/apimodule/getorderinfo'){
     header('Content-Type: application/json');
     echo apiGetOrderInfo();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/paymentanddelivery  getOrderPaymentAndDelivery
+ * @apiName getOrderPaymentAndDelivery
+ * @apiGroup All
+ *
+ * @apiParam {Number} order_id unique order ID.
+ * @apiParam {Token} token your unique token.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {String} payment_method     Payment method.
+ * @apiSuccess {String} shipping_method  Shipping method.
+ * @apiSuccess {String} shipping_address  Shipping address.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *
+ *      {
+ *          "response":
+ *              {
+ *                  "payment_method" : "Оплата при доставке",
+ *                  "shipping_method" : "Доставка с фиксированной стоимостью доставки",
+ *                  "shipping_address" : "проспект Карла Маркса 1, Днепропетровск, Днепропетровская область, Украина."
+ *              },
+ *          "status": true,
+ *          "version": 1.0
+ *      }
+ * @apiErrorExample Error-Response:
+ *
+ *    {
+ *      "error": "Can not found order with id = 90",
+ *      "version": 1.0,
+ *      "Status" : false
+ *   }
+ *
+ */
 if ($get['route'] == 'module/apimodule/paymentanddelivery'){
     header('Content-Type: application/json');
     echo apiGetPaymentAndDelivery();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/orderproducts  getOrderProducts
+ * @apiName getOrderProducts
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {ID} order_id unique order id.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Url} image  Picture of the product.
+ * @apiSuccess {Number} quantity  Quantity of the product.
+ * @apiSuccess {String} name     Name of the product.
+ * @apiSuccess {String} model  Model of the product.
+ * @apiSuccess {Number} Price  Price of the product.
+ * @apiSuccess {Number} total_order_price  Total sum of the order.
+ * @apiSuccess {Number} total_price  Sum of product's prices.
+ * @apiSuccess {String} currency_code  currency of the order.
+ * @apiSuccess {Number} shipping_price  Cost of the shipping.
+ * @apiSuccess {Number} total  Total order sum.
+ * @apiSuccess {Number} product_id  unique product id.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *      "response":
+ *          {
+ *              "products": [
+ *              {
+ *                  "image" : "http://opencart/image/catalog/demo/htc_touch_hd_1.jpg",
+ *                  "name" : "HTC Touch HD",
+ *                  "model" : "Product 1",
+ *                  "quantity" : 3,
+ *                  "price" : 100.00,
+ *                  "product_id" : 90
+ *              },
+ *              {
+ *                  "image" : "http://opencart/image/catalog/demo/iphone_1.jpg",
+ *                  "name" : "iPhone",
+ *                  "model" : "Product 11",
+ *                  "quantity" : 1,
+ *                  "price" : 500.00,
+ *                  "product_id" : 97
+ *               }
+ *            ],
+ *            "total_order_price":
+ *              {
+ *                   "total_discount": 0,
+ *                   "total_price": 2250,
+ *					 "currency_code": "RUB",
+ *                   "shipping_price": 35,
+ *                   "total": 2285
+ *               }
+ *
+ *         },
+ *      "status": true,
+ *      "version": 1.0
+ * }
+ *
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *          "error": "Can not found any products in order with id = 10",
+ *          "version": 1.0,
+ *          "Status" : false
+ *     }
+ *
+ */
 if ($get['route'] == 'module/apimodule/orderproducts'){
     header('Content-Type: application/json');
     echo apiGetOrderProducts();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/orderhistory  getOrderHistory
+ * @apiName getOrderHistory
+ * @apiGroup All
+ *
+ * @apiParam {Number} order_id unique order ID.
+ * @apiParam {Token} token your unique token.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {String} name     Status of the order.
+ * @apiSuccess {Number} order_status_id  ID of the status of the order.
+ * @apiSuccess {Date} date_added  Date of adding status of the order.
+ * @apiSuccess {String} comment  Some comment added from manager.
+ * @apiSuccess {Array} statuses  Statuses list for order.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *       {
+ *           "response":
+ *               {
+ *                   "orders":
+ *                      {
+ *                          {
+ *                              "name": "Отменено",
+ *                              "order_status_id": "7",
+ *                              "date_added": "2016-12-13 08:27:48.",
+ *                              "comment": "Some text"
+ *                          },
+ *                          {
+ *                              "name": "Сделка завершена",
+ *                              "order_status_id": "5",
+ *                              "date_added": "2016-12-25 09:30:10.",
+ *                              "comment": "Some text"
+ *                          },
+ *                          {
+ *                              "name": "Ожидание",
+ *                              "order_status_id": "1",
+ *                              "date_added": "2016-12-01 11:25:18.",
+ *                              "comment": "Some text"
+ *                           }
+ *                       },
+ *                    "statuses":
+ *                        {
+ *                             {
+ *                                  "name": "Отменено",
+ *                                  "order_status_id": "7",
+ *                                  "language_id": "1"
+ *                             },
+ *                             {
+ *                                  "name": "Сделка завершена",
+ *                                  "order_status_id": "5",
+ *                                  "language_id": "1"
+ *                              },
+ *                              {
+ *                                  "name": "Ожидание",
+ *                                  "order_status_id": "1",
+ *                                  "language_id": "1"
+ *                              }
+ *                         }
+ *               },
+ *           "status": true,
+ *           "version": 1.0
+ *       }
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *          "error": "Can not found any statuses for order with id = 5",
+ *          "version": 1.0,
+ *          "Status" : false
+ *     }
+ */
 if ($get['route'] == 'module/apimodule/orderhistory'){
     header('Content-Type: application/json');
     echo apiGetOrderHistory();
