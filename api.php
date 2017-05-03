@@ -13,18 +13,47 @@ $get = $_REQUEST;
 global $db;
 
 /**
- * @api {get}
- * @apiVersion 0.1.0
- * @apiName changeOrderDelivery
+ * @api {get} api.php?route=module/apimodule/delivery  ChangeOrderDelivery
+ * @apiName ChangeOrderDelivery
  * @apiGroup All
  *
- * @apiParam {String} address User's address.
- * @apiParam {String} city User's  city.
- * @apiParam {Number} id unique order ID User's device's os_type for firebase notifications.
- * @apiParam {String} token User's unique token .
+ * @apiParam {String} address New shipping address.
+ * @apiParam {String} city New shipping city.
+ * @apiParam {Number} order_id unique order ID.
+ * @apiParam {Token} token your unique token.
  *
  * @apiSuccess {Number} version  Current API version.
- * @apiSuccess {Boolean} response
+ * @apiSuccess {Boolean} response Status of change address.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *   {
+ *         "status": true,
+ *         "version": 1.0
+ *    }
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error": "Can not change address",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ *
+ */
+if ($get['route'] == 'module/apimodule/delivery'){
+    header('Content-Type: application/json');
+    echo apiChangeOrderDelivery();
+}
+
+/**
+ * @api {post} api.php?route=module/apimodule/deletedevicetoken  deleteUserDeviceToken
+ * @apiName deleteUserDeviceToken
+ * @apiGroup All
+ *
+ * @apiParam {String} old_token User's device's token for firebase notifications.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Boolean} status  true.
  *
  * @apiSuccessExample Success-Response:
  *     HTTP/1.1 200 OK
@@ -39,23 +68,47 @@ global $db;
  * @apiErrorExample Error-Response:
  *
  *     {
- *       "error": "Cannot change address",
+ *       "error": "Missing some params",
  *       "version": 1.0,
  *       "Status" : false
  *     }
  *
  */
-
-if ($get['route'] == 'module/apimodule/delivery'){
-    header('Content-Type: application/json');
-    echo apiChangeOrderDelivery();
-}
-
 if ($get['route'] == 'module/apimodule/deletedevicetoken'){
     header('Content-Type: application/json');
     echo apiDeleteDeviceToken();
 }
 
+/**
+ * @api {post} api.php?route=module/apimodule/updatedevicetoken  updateUserDeviceToken
+ * @apiName updateUserDeviceToken
+ * @apiGroup All
+ *
+ * @apiParam {String} new_token User's device's new token for firebase notifications.
+ * @apiParam {String} old_token User's device's old token for firebase notifications.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Boolean} status  true.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *   {
+ *       "response":
+ *       {
+ *          "status": true,
+ *          "version": 1.0
+ *       }
+ *   }
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error": "Missing some params",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ *
+ */
 if ($get['route'] == 'module/apimodule/updatedevicetoken' && isset($get['old_token']) && isset($get['new_token'])){
     header('Content-Type: application/json');
     echo apiUpdateDeviceToken();
@@ -160,6 +213,74 @@ if ($get['route'] == 'module/apimodule/orders'){
     echo apiGetOrders();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/statistic  getDashboardStatistic
+ * @apiName getDashboardStatistic
+ * @apiGroup All
+ *
+ * @apiParam {String} filter Period for filter(day/week/month/year).
+ * @apiParam {Token} token your unique token.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Array} xAxis Period of the selected filter.
+ * @apiSuccess {Array} Clients Clients for the selected period.
+ * @apiSuccess {Array} Orders Orders for the selected period.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Number} total_sales  Sum of sales of the shop.
+ * @apiSuccess {Number} sale_year_total  Sum of sales of the current year.
+ * @apiSuccess {Number} orders_total  Total orders of the shop.
+ * @apiSuccess {Number} clients_total  Total clients of the shop.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *   {
+ *           "response": {
+ *               "xAxis": [
+ *                  1,
+ *                  2,
+ *                  3,
+ *                  4,
+ *                  5,
+ *                  6,
+ *                  7
+ *              ],
+ *              "clients": [
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0
+ *              ],
+ *              "orders": [
+ *                  1,
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0,
+ *                  0
+ *              ],
+ *              "total_sales": "1920.00",
+ *              "sale_year_total": "305.00",
+ *              "currency_code": "UAH",
+ *              "orders_total": "4",
+ *              "clients_total": "3"
+ *           },
+ *           "status": true,
+ *           "version": 1.0
+ *  }
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error": "Unknown filter set",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ *
+ */
 if ($get['route'] == 'module/apimodule/statistic'){
     header('Content-Type: application/json');
     echo apiGetStatistic();
@@ -422,31 +543,327 @@ if ($get['route'] == 'module/apimodule/orderhistory'){
     echo apiGetOrderHistory();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/clients  getClients
+ * @apiName GetClients
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Number} page number of the page.
+ * @apiParam {Number} limit limit of the orders for the page.
+ * @apiParam {String} fio full name of the client.
+ * @apiParam {String} sort param for sorting clients(sum/quantity/date_added).
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Number} client_id  ID of the client.
+ * @apiSuccess {String} fio     Client's FIO.
+ * @apiSuccess {Number} total  Total sum of client's orders.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Number} quantity  Total quantity of client's orders.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *   "Response"
+ *   {
+ *     "clients"
+ *      {
+ *          {
+ *              "client_id" : "88",
+ *              "fio" : "Anton Kiselev",
+ *              "total" : "1006.00",
+ *              "currency_code": "UAH",
+ *              "quantity" : "5"
+ *          },
+ *          {
+ *              "client_id" : "10",
+ *              "fio" : "Vlad Kochergin",
+ *              "currency_code": "UAH",
+ *              "total" : "555.00",
+ *              "quantity" : "1"
+ *          }
+ *      }
+ *    },
+ *    "Status" : true,
+ *    "version": 1.0
+ * }
+ * @apiErrorExample Error-Response:
+ * {
+ *      "Error" : "Not one client found",
+ *      "version": 1.0,
+ *      "Status" : false
+ * }
+ *
+ *
+ */
 if ($get['route'] == 'module/apimodule/clients'){
     header('Content-Type: application/json');
     echo apiGetClients();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/clientinfo  getClientInfo
+ * @apiName getClientInfo
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Number} client_id unique client ID.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Number} client_id  ID of the client.
+ * @apiSuccess {String} fio     Client's FIO.
+ * @apiSuccess {Number} total  Total sum of client's orders.
+ * @apiSuccess {Number} quantity  Total quantity of client's orders.
+ * @apiSuccess {String} email  Client's email.
+ * @apiSuccess {String} telephone  Client's telephone.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Number} cancelled  Total quantity of cancelled orders.
+ * @apiSuccess {Number} completed  Total quantity of completed orders.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *   "Response"
+ *   {
+ *         "client_id" : "88",
+ *         "fio" : "Anton Kiselev",
+ *         "total" : "1006.00",
+ *         "quantity" : "5",
+ *         "cancelled" : "1",
+ *         "completed" : "2",
+ *         "currency_code": "UAH",
+ *         "email" : "client@mail.ru",
+ *         "telephone" : "13456789"
+ *   },
+ *   "Status" : true,
+ *   "version": 1.0
+ * }
+ * @apiErrorExample Error-Response:
+ * {
+ *      "Error" : "Not one client found",
+ *      "version": 1.0,
+ *      "Status" : false
+ * }
+ *
+ *
+ */
 if ($get['route'] == 'module/apimodule/clientinfo'){
     header('Content-Type: application/json');
     echo apiGetClientInfo();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/clientorders  getClientOrders
+ * @apiName getClientOrders
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Number} client_id unique client ID.
+ * @apiParam {String} sort param for sorting orders(total/date_added/completed/cancelled).
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Number} order_id  ID of the order.
+ * @apiSuccess {Number} order_number  Number of the order.
+ * @apiSuccess {String} status  Status of the order.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Number} total  Total sum of the order.
+ * @apiSuccess {Date} date_added  Date added of the order.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *   "Response"
+ *   {
+ *       "orders":
+ *          {
+ *             "order_id" : "1",
+ *             "order_number" : "1",
+ *             "status" : "Сделка завершена",
+ *             "currency_code": "UAH",
+ *             "total" : "106.00",
+ *             "date_added" : "2016-12-09 16:17:02"
+ *          },
+ *          {
+ *             "order_id" : "2",
+ *             "currency_code": "UAH",
+ *             "order_number" : "2",
+ *             "status" : "В обработке",
+ *             "total" : "506.00",
+ *             "date_added" : "2016-10-19 16:00:00"
+ *          }
+ *    },
+ *    "Status" : true,
+ *    "version": 1.0
+ * }
+ * @apiErrorExample Error-Response:
+ * {
+ *      "Error" : "You have not specified ID",
+ *      "version": 1.0,
+ *      "Status" : false
+ * }
+ *
+ *
+ */
 if ($get['route'] == 'module/apimodule/clientorders'){
     header('Content-Type: application/json');
     echo apiGetClientOrders();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/products  getProductsList
+ * @apiName getProductsList
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Number} page number of the page.
+ * @apiParam {Number} limit limit of the orders for the page.
+ * @apiParam {String} name name of the product for search.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Number} product_id  ID of the product.
+ * @apiSuccess {String} model     Model of the product.
+ * @apiSuccess {String} name  Name of the product.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Number} price  Price of the product.
+ * @apiSuccess {Number} quantity  Actual quantity of the product.
+ * @apiSuccess {Url} image  Url to the product image.
+ *
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *   "Response":
+ *   {
+ *      "products":
+ *      {
+ *           {
+ *             "product_id" : "1",
+ *             "model" : "Black",
+ *             "name" : "HTC Touch HD",
+ *             "price" : "100.00",
+ *             "currency_code": "UAH",
+ *             "quantity" : "83",
+ *             "image" : "http://site-url/image/catalog/demo/htc_touch_hd_1.jpg"
+ *           },
+ *           {
+ *             "product_id" : "2",
+ *             "model" : "White",
+ *             "name" : "iPhone",
+ *             "price" : "300.00",
+ *             "currency_code": "UAH",
+ *             "quantity" : "30",
+ *             "image" : "http://site-url/image/catalog/demo/iphone_1.jpg"
+ *           }
+ *      }
+ *   },
+ *   "Status" : true,
+ *   "version": 1.0
+ * }
+ * @apiErrorExample Error-Response:
+ * {
+ *      "Error" : "Not one product not found",
+ *      "version": 1.0,
+ *      "Status" : false
+ * }
+ *
+ *
+ */
 if ($get['route'] == 'module/apimodule/products'){
     header('Content-Type: application/json');
     echo apiGetProducts();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/productinfo  getProductInfo
+ * @apiName getProductInfo
+ * @apiGroup All
+ *
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Number} product_id unique product ID.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {Number} product_id  ID of the product.
+ * @apiSuccess {String} model     Model of the product.
+ * @apiSuccess {String} name  Name of the product.
+ * @apiSuccess {Number} price  Price of the product.
+ * @apiSuccess {String} currency_code  Default currency of the shop.
+ * @apiSuccess {Number} quantity  Actual quantity of the product.
+ * @apiSuccess {String} description     Detail description of the product.
+ * @apiSuccess {Array} images  Array of the images of the product.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ * {
+ *   "Response":
+ *   {
+ *       "product_id" : "1",
+ *       "model" : "Black",
+ *       "name" : "HTC Touch HD",
+ *       "price" : "100.00",
+ *       "currency_code": "UAH"
+ *       "quantity" : "83",
+ *       "main_image" : "http://site-url/image/catalog/demo/htc_iPhone_1.jpg",
+ *       "description" : "Revolutionary multi-touch interface.↵	iPod touch features the same multi-touch screen technology as iPhone.",
+ *       "images" :
+ *       [
+ *           "http://site-url/image/catalog/demo/htc_iPhone_1.jpg",
+ *           "http://site-url/image/catalog/demo/htc_iPhone_2.jpg",
+ *           "http://site-url/image/catalog/demo/htc_iPhone_3.jpg"
+ *       ]
+ *   },
+ *   "Status" : true,
+ *   "version": 1.0
+ * }
+ * @apiErrorExample Error-Response:
+ * {
+ *      "Error" : "Can not found product with id = 10",
+ *      "version": 1.0,
+ *      "Status" : false
+ * }
+ *
+ *
+ */
 if ($get['route'] == 'module/apimodule/productinfo'){
     header('Content-Type: application/json');
     echo apiGetProductInfo();
 }
 
+/**
+ * @api {get} api.php?route=module/apimodule/changestatus  ChangeStatus
+ * @apiName ChangeStatus
+ * @apiGroup All
+ *
+ * @apiParam {String} comment New comment for order status.
+ * @apiParam {Number} order_id unique order ID.
+ * @apiParam {Number} status_id unique status ID.
+ * @apiParam {Token} token your unique token.
+ * @apiParam {Boolean} inform status of the informing client.
+ *
+ * @apiSuccess {Number} version  Current API version.
+ * @apiSuccess {String} name Name of the new status.
+ * @apiSuccess {String} date_added Date of adding status.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *   {
+ *          "response":
+ *              {
+ *                  "name" : "Сделка завершена",
+ *                  "date_added" : "2016-12-27 12:01:51"
+ *              },
+ *          "status": true,
+ *          "version": 1.0
+ *   }
+ *
+ * @apiErrorExample Error-Response:
+ *
+ *     {
+ *       "error" : "Missing some params",
+ *       "version": 1.0,
+ *       "Status" : false
+ *     }
+ *
+ */
 if ($get['route'] == 'module/apimodule/changestatus' && isset($get['token'])){
     header('Content-Type: application/json');
     echo apiChangeStatus();
@@ -487,7 +904,6 @@ if ($get['route'] == 'module/apimodule/changestatus' && isset($get['token'])){
  *     }
  *
  */
-
 if ($get['route'] == 'Login' && isset($get['username']) && isset($get['password']) && !isset($get['token']))
 {
 
@@ -545,12 +961,12 @@ if ($get['route'] == 'Login' && isset($get['username']) && isset($get['password'
         }
         elseif (zen_validate_password($password, $dbPassword)==true && $check_user_has_token){
 
-            $token = md5(mt_rand());
-
-            $update_token_query = "UPDATE user_token_mob_api SET token='$token' WHERE user_id='$customer_id'";
 
 
-            mysqli_query($db->link, $update_token_query);
+            $update_token_query = "SELECT token FROM user_token_mob_api WHERE user_id='$customer_id'";
+
+
+            $token = mysqli_fetch_array(mysqli_query($db->link, $update_token_query))[0];
             if (isset($get['os_type']) && isset($get['device_token'])){
                 $os_type = $get['os_type'];
                 $device_token =$get['device_token'];
@@ -576,6 +992,7 @@ if ($get['route'] == 'Login' && isset($get['username']) && isset($get['password'
 
     }
 }
+
 
 
 
@@ -650,9 +1067,10 @@ function apiGetClients(){
                 $row['quantity'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(order_total) FROM orders WHERE customers_id=$client_id"))[0];
                 if ($client_id != $clients[$i-1]['client_id']) {
                     array_push($clients, $row);
+                    $i++;
                 }
             }
-            $i++;
+
         }
 
 
@@ -1204,7 +1622,7 @@ function apiGetClientOrders(){
                 $filter = 'date_added';
             }
             else if($get['sort'] == 'completed'){
-                $filter = 'COUNT(SELECT * FROM orders WHERE orders_status=3)';
+                $filter = 'o.orders_id';
             }
 
         }
@@ -1345,6 +1763,7 @@ function apiGetProductInfo(){
             $products[0]['main_image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$products[0]['main_image'];
             $products[0]['images'][] = $products[0]['main_image'];
             $products[0]['currency_code'] = getCurrency();
+            $products[0]['description'] = strip_tags($products[0]['description']);
 
             $response = json_encode(['response' => $products[0], 'status' => true, 'version' => API_VERSION]);
 

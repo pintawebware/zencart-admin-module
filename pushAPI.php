@@ -30,9 +30,9 @@ function sendNotifications()
     $ids = [];
     foreach($devices as $device){
         if(strtolower($device['os_type']) == 'ios'){
-            $ids['ios'][] = $device['token'];
+            $ids['ios'][] = $device['device_token'];
         }else{
-            $ids['android'][] = $device['token'];
+            $ids['android'][] = $device['device_token'];
         }
     }
     $order_id = $order['order_id'];
@@ -49,7 +49,7 @@ function sendNotifications()
             'new_order'  => [
                 'order_id'      => $order_id,
                 'total'         => number_format( $order['total'], 2, '.', '' ),
-                'currency_code' => $order['currency'],
+                'currency_code' => $order['currency_code'],
                 'site_url'      => "http://" . $_SERVER['HTTP_HOST'],
             ],
             'event_type' => 'new_order'
@@ -59,7 +59,7 @@ function sendNotifications()
             'new_order'  => [
                 'order_id'      => $order_id,
                 'total'         => number_format( $order['total'], 2, '.', '' ),
-                'currency_code' => $order['currency'],
+                'currency_code' => $order['currency_code'],
                 'site_url'      => "http://" . $_SERVER['HTTP_HOST'],
             ],
             'event_type' => 'new_order'
