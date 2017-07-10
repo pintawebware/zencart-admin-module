@@ -2320,11 +2320,11 @@ function apiDeleteImage(){
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     } else {
 
-        $product_id = $get['product_id'];
+            $product_id = $get['product_id'];
 
             $old_image_name = mysqli_fetch_row(mysqli_query($db->link, "SELECT products_image FROM products WHERE products_id=$product_id"))[0];
-
             unlink(DIR_WS_IMAGES.$old_image_name);
+            echo($old_image_name);
 
             $sql = "UPDATE " . TABLE_PRODUCTS . " SET products_image=' ' WHERE products_id=$product_id";
             $query = mysqli_query($db->link, $sql);
