@@ -1261,7 +1261,7 @@ function apiGetClients(){
     else {
         //header('Content-Type: application/json');
         //echo json_encode(['status' => false, 'version' => API_VERSION]);
-        return json_encode(['status' => false, 'version' => API_VERSION]);
+        return json_encode(['response' => ['clients' => []], 'status' => true, 'version' => API_VERSION]);
     }
 
 }
@@ -1411,9 +1411,17 @@ function apiGetOrders(){
             return $end;
         }
         else {
+            $response = (['response' => ['orders' => [],
+                'statuses' => [],
+                'currency_code' => getCurrency(),
+                'total_quantity' => 0,
+                'total_sum' => 0,
+                'max_price' => 0],
+                'status' => true,
+                'version' => API_VERSION]);
             header('Content-Type: application/json');
             //echo json_encode(['status' => false, 'version' => API_VERSION]);
-            return json_encode(['status' => false, 'version' => API_VERSION]);
+            return json_encode($response);
         }
 
     }
@@ -1861,7 +1869,7 @@ function apiGetProducts(){
             $response = json_encode(['response' => ['products' => $products], 'status' => true, 'version' => API_VERSION]);
         }
         else {
-            $response = json_encode(['error' => "Not one product not found", 'status' => false, 'version' => API_VERSION]);
+            $response = json_encode(['response' => ['products' => []], 'status' => true, 'version' => API_VERSION]);
         }
 
         //echo $response;
@@ -1893,8 +1901,7 @@ function apiGetProductInfo(){
         p.master_categories_id as category_id,
         d.products_description as description,
         c.categories_name as category_name,
-        p.products_status as status,
-        p.products_id as sku
+        p.products_status as status
         FROM ".TABLE_PRODUCTS." p 
         INNER JOIN ".TABLE_PRODUCTS_DESCRIPTION." d ON p.products_id=d.products_id 
         INNER JOIN ".TABLE_CATEGORIES_DESCRIPTION." c ON p.master_categories_id=c.categories_id
@@ -1909,9 +1916,14 @@ function apiGetProductInfo(){
             array_push($products, $row);
             $products[0]['main_image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$products[0]['main_image'];
             $products[0]['images'][0]['image'] = $products[0]['main_image'];
-            $products[0]['images'][0]['image_id'] = $products[0]['main_image'];
+//            $products[0]['images'][0]['image_id'] = $products[0]['main_image'];
+            $products[0]['images'][0]['image_id'] = "-1";
             $products[0]['currency_code'] = getCurrency();
-            $products[0]['description'] = strip_tags($products[0]['description']);
+            $status = $products[0]['status'];
+            $products[0]['status'] = $status ? 'Enabled' : 'Disabled';
+            $price = $products[0]['price'];
+            $products[0]['price'] = (string)(float)$price;
+            $products[0]['description'] = $products[0]['description'];
             $products[0]['stock_statuses'] = array();
             if ($products[0]['quantity']){
                 $products[0]['stock_statuses'][0]['status_id'] = 1;
@@ -2153,10 +2165,26 @@ function apiUpdateProduct(){
             $tmp_name = $_FILES['images']['tmp_name'];
             move_uploaded_file($tmp_name, DIR_WS_IMAGES.$product_image_name);
         }
+        $image = '';
+        $query = mysqli_query($db->link, "SELECT products_image FROM products WHERE products_id = $product_id");
+        if ($query) {
+            $image = array_shift($query->fetch_row());
+        }
+        $images = [];
+        $images[0]['image_id'] = -1;
+        $images[0]['image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$image;
+
+        $answer = [];
+        $answer['product_id'] = $product_id;
+        $answer['images'] = $images;
 
         if ($stat_first && $stat_second) {
 
-            $response = json_encode(['status' => true, 'version' => API_VERSION]);
+            $response = json_encode([
+                'status' => true,
+                'version' => API_VERSION,
+                'response' => $answer
+            ]);
 
         }
 
@@ -2182,29 +2210,29 @@ function apiCreateProduct(){
     }
     else{
 
-        if (isset($get['price']))
+        if (isset($get['price']) && $get['price'])
             $product_price = $get['price'];
         else
             $product_price = 0;
 
         $product_name = $get['name'];
 
-        if (isset($get['quantity']))
+        if (isset($get['quantity']) && $get['quantity'])
             $product_quantity = $get['quantity'];
         else
             $product_quantity = 0;
 
-        if (isset($get['description']))
+        if (isset($get['description']) && $get['description'])
             $product_description = $get['description'];
         else
             $product_description = null;
 
-        if (isset($get['model']))
+        if (isset($get['model']) && $get['model'])
             $product_model = $get['model'];
         else
             $product_model = null;
 
-        if (isset($get['status']))
+        if (isset($get['status']) && $get['status'])
             $product_status = $get['status'];
         else
             $product_status = 0;
@@ -2252,10 +2280,37 @@ function apiCreateProduct(){
             move_uploaded_file($tmp_name, DIR_WS_IMAGES.$product_image_name);
         }
 
+        $image = '';
+        $query = mysqli_query($db->link, "SELECT products_image FROM products WHERE products_id = $product_id");
+        if ($query) {
+            $image = array_shift($query->fetch_row());
+        }
+        $images = [];
+        $images[0]['image_id'] = -1;
+        $images[0]['image'] = 'http://'.$_SERVER['SERVER_NAME'].'/images/'.$image;
+
+        $answer = [];
+        $answer['product_id'] = $product_id;
+        $answer['images'] = $images;
+
+        if ($stat_first && $stat_second) {
+
+            $response = json_encode(['status' => true, 'version' => API_VERSION, 'response' => [
+                'product_id' => $product_id,
+                'images' => $images
+            ]
+            ]);
+
+        }
+
         if ($stat_first && $stat_second)
         {
 
-            $response = json_encode(['status' => true, 'version' => API_VERSION]);
+            $response = json_encode([
+                'status' => true,
+                'version' => API_VERSION,
+                'response' => $answer
+            ]);
 
         }
 
@@ -2333,7 +2388,7 @@ function apiDeleteImage(){
 
         if ($query) {
             //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
-            return json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
+            return json_encode(["status" => true, 'version' => API_VERSION]);
         } else {
             //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
             return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
