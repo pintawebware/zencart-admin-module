@@ -7,8 +7,6 @@ require('includes/application_top.php');
 $db->query($db->link, "CREATE TABLE IF NOT EXISTS " . "user_token_mob_api (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, user_id INT NOT NULL, token VARCHAR(32) NOT NULL )");
 $db->query($db->link, "CREATE TABLE IF NOT EXISTS " . "user_device_mob_api (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, user_id INT NOT NULL, device_token VARCHAR(500) , os_type VARCHAR(20))");
 
-
-
 $get = $_REQUEST;
 global $db;
 
@@ -906,7 +904,6 @@ if ($get['route'] == 'module/apimodule/changestatus' && isset($get['token'])){
  */
 if ($get['route'] == 'Login' && isset($get['username']) && isset($get['password']) && !isset($get['token']))
 {
-
     $email_address = zen_db_prepare_input($get['username']);
     $password = zen_db_prepare_input($get['password']);
     $loginAuthorized = false;
@@ -1141,7 +1138,6 @@ function apiGetClients(){
     global $db;
 
     if (validToken($get['token'])){
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
 
@@ -1176,8 +1172,8 @@ function apiGetClients(){
         $sql = "SELECT c.customers_id as client_id, 
          CONCAT(c.customers_firstname, ' ', c.customers_lastname) as fio, 
          o.currency as currency_code 
-        FROM customers c 
-        INNER JOIN orders o ON c.customers_id=o.customers_id 
+        FROM " . TABLE_CUSTOMERS . " c 
+        INNER JOIN " . TABLE_ORDERS . " o ON c.customers_id=o.customers_id 
         WHERE c.customers_id>0 ";
 
 
@@ -1202,8 +1198,8 @@ function apiGetClients(){
             if($row['currency_code']){
 
                 $client_id = $row['client_id'];
-                $row['total'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM orders WHERE customers_id=$client_id"))[0];
-                $row['quantity'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(order_total) FROM orders WHERE customers_id=$client_id"))[0];
+                $row['total'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM " . TABLE_ORDERS . " WHERE customers_id=$client_id"))[0];
+                $row['quantity'] = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(order_total) FROM " . TABLE_ORDERS . " WHERE customers_id=$client_id"))[0];
                 if ($client_id != $clients[$i-1]['client_id']) {
                     array_push($clients, $row);
                     $i++;
@@ -1255,12 +1251,10 @@ function apiGetClients(){
         $end = json_encode($response);
 
         //header('Content-Type: application/json');
-        //echo($end);
         return $end;
     }
     else {
         //header('Content-Type: application/json');
-        //echo json_encode(['status' => false, 'version' => API_VERSION]);
         return json_encode(['response' => ['clients' => []], 'status' => true, 'version' => API_VERSION]);
     }
 
@@ -1273,11 +1267,9 @@ function apiDeleteDeviceToken(){
     $old_token = $get['old_token'];
     if(mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM user_device_mob_api WHERE device_token='$old_token'"))){
         mysqli_query($db->link, "DELETE FROM user_device_mob_api WHERE device_token='$old_token'");
-        //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
         return json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
     }
     else{
-        //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
         return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
     }
 }
@@ -1290,11 +1282,9 @@ function apiUpdateDeviceToken(){
     $new_token = $get['new_token'];
     if(mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM user_device_mob_api WHERE device_token='$old_token'"))){
         mysqli_query($db->link, "UPDATE user_device_mob_api SET device_token='$new_token' WHERE device_token='$old_token'");
-        //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
         return json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
     }
     else{
-        //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
         return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
     }
 }
@@ -1304,7 +1294,6 @@ function apiGetOrders(){
     global $db;
 
     if (validToken($get['token'])){
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
 
@@ -1343,9 +1332,8 @@ function apiGetOrders(){
         o.order_total as total, 
         o.date_purchased as date_added, 
         o.currency as currency_code 
-        FROM orders o ";
-        $sql .= "INNER JOIN orders_status s ON o.orders_status=s.orders_status_id WHERE o.orders_id>0 ";
-
+        FROM " . TABLE_ORDERS . " o ";
+        $sql .= "INNER JOIN " . TABLE_ORDERS_STATUS . " s ON o.orders_status=s.orders_status_id WHERE o.orders_id>0 ";
 
         if (($filters['fio'])){
             $name = $filters['fio'];
@@ -1354,7 +1342,7 @@ function apiGetOrders(){
 
         if (($filters['order_status_id'])){
             $status_name  = $filters['order_status_id'];
-            //$status_id_to_name = mysqli_fetch_row(mysqli_query($db->link, "SELECT orders_status_id FROM orders_status WHERE orders_status_name='$status_name'"))[0];
+            //$status_id_to_name = mysqli_fetch_row(mysqli_query($db->link, "SELECT orders_status_id FROM " . TABLE_ORDERS . "_status WHERE orders_status_name='$status_name'"))[0];
 
             $sql .= "AND o.orders_status=$status_name ";
         }
@@ -1391,8 +1379,8 @@ function apiGetOrders(){
 
         if($orders) {
 
-            $total_quantity = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM orders"))[0];
-            $max_price = mysqli_fetch_row(mysqli_query($db->link, "SELECT MAX(order_total) FROM orders"))[0];
+            $total_quantity = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM " . TABLE_ORDERS))[0];
+            $max_price = mysqli_fetch_row(mysqli_query($db->link, "SELECT MAX(order_total) FROM " . TABLE_ORDERS))[0];
 
             $response = (['response' => ['orders' => ($orders),
                 'statuses' => ($statuses),
@@ -1407,7 +1395,6 @@ function apiGetOrders(){
             $end = json_encode($response);
 
             header('Content-Type: application/json');
-            //echo($end);
             return $end;
         }
         else {
@@ -1420,7 +1407,6 @@ function apiGetOrders(){
                 'status' => true,
                 'version' => API_VERSION]);
             header('Content-Type: application/json');
-            //echo json_encode(['status' => false, 'version' => API_VERSION]);
             return json_encode($response);
         }
 
@@ -1432,7 +1418,6 @@ function apiGetStatistic(){
     global $db;
 
     if (validToken($get['token'])){
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else {
@@ -1445,45 +1430,39 @@ function apiGetStatistic(){
             if ($get['filter'] == 'day') {
                 for ($i = 0; $i < 24; $i++) {
                     array_push($xAxis, $i);
-                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE DAY (date_purchased)= DAY (NOW()) AND HOUR (date_purchased) = $i")));
-                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE DAY(customers_info_date_account_created)=DAY(NOW()) AND HOUR(customers_info_date_account_created) = $i")));
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_ORDERS . " WHERE DAY (date_purchased)= DAY (NOW()) AND HOUR (date_purchased) = $i")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_CUSTOMERS_INFO . " WHERE DAY(customers_info_date_account_created)=DAY(NOW()) AND HOUR(customers_info_date_account_created) = $i")));
                 }
             }
             if ($get['filter'] == 'week') {
 
                 for ($i = 1; $i <= 7; $i++) {
                     array_push($xAxis, $i);
-                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE WEEKOFYEAR(date_purchased)=WEEKOFYEAR(NOW()) AND WEEKDAY(date_purchased) = $i-1")));
-                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE WEEKOFYEAR(customers_info_date_account_created)=WEEKOFYEAR(NOW()) AND WEEKDAY(customers_info_date_account_created) = $i-1")));
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_ORDERS . " WHERE WEEKOFYEAR(date_purchased)=WEEKOFYEAR(NOW()) AND WEEKDAY(date_purchased) = $i-1")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_CUSTOMERS_INFO . " WHERE WEEKOFYEAR(customers_info_date_account_created)=WEEKOFYEAR(NOW()) AND WEEKDAY(customers_info_date_account_created) = $i-1")));
                 }
             }
             if ($get['filter'] == 'month') {
                 $days = date('t');
                 for ($i = 1; $i <= $days; $i++) {
                     array_push($xAxis, $i);
-                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE MONTH (date_purchased)=MONTH (NOW()) AND DAY (date_purchased) = $i")));
-                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE MONTH (customers_info_date_account_created)=MONTH (NOW()) AND DAY (customers_info_date_account_created) = $i")));
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_ORDERS . " WHERE MONTH (date_purchased)=MONTH (NOW()) AND DAY (date_purchased) = $i")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_CUSTOMERS_INFO . " WHERE MONTH (customers_info_date_account_created)=MONTH (NOW()) AND DAY (customers_info_date_account_created) = $i")));
                 }
             }
             if ($get['filter'] == 'year') {
                 for ($i = 1; $i <= 12; $i++) {
                     array_push($xAxis, $i);
-                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM orders WHERE YEAR(date_purchased)=YEAR(NOW()) AND MONTH (date_purchased) = $i")));
-                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM customers_info WHERE YEAR (customers_info_date_account_created)=YEAR (NOW()) AND MONTH (customers_info_date_account_created) = $i")));
+                    array_push($orders, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_ORDERS . " WHERE YEAR(date_purchased)=YEAR(NOW()) AND MONTH (date_purchased) = $i")));
+                    array_push($clients, mysqli_num_rows(mysqli_query($db->link, "SELECT * FROM " . TABLE_CUSTOMERS_INFO . " WHERE YEAR (customers_info_date_account_created)=YEAR (NOW()) AND MONTH (customers_info_date_account_created) = $i")));
                 }
             }
             $total_sales = getTotalSum();
-            $sale_year_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM orders WHERE YEAR(date_purchased)=YEAR(NOW())"))[0];
+            $sale_year_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM " . TABLE_ORDERS . " WHERE YEAR(date_purchased)=YEAR(NOW())"))[0];
             $currency = getCurrency();
-            $orders_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM orders"))[0];
-            $clients_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM customers"))[0];
+            $orders_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM " . TABLE_ORDERS))[0];
+            $clients_total = mysqli_fetch_row(mysqli_query($db->link, "SELECT COUNT(*) FROM " . TABLE_CUSTOMERS))[0];
 
-
-
-//            echo json_encode(["response" => ['xAxis' => $xAxis, 'clients' => $clients, 'orders' => $orders, 'total_sales' => $total_sales,
-//                'sale_year_total' => $sale_year_total, 'currency_code' => $currency, 'orders_total' => $orders_total,
-//                'clients_total' => $clients_total],
-//                "status" => true, 'version' => API_VERSION]);
             return json_encode(["response" => ['xAxis' => $xAxis, 'clients' => $clients, 'orders' => $orders, 'total_sales' => $total_sales,
                 'sale_year_total' => $sale_year_total, 'currency_code' => $currency, 'orders_total' => $orders_total,
                 'clients_total' => $clients_total],
@@ -1491,7 +1470,6 @@ function apiGetStatistic(){
         }
         else{
 
-            //echo json_encode(['error' => 'unknown filter set', 'status' => false, 'version' => API_VERSION]);
             return json_encode(['error' => 'unknown filter set', 'status' => false, 'version' => API_VERSION]);
         }
 
@@ -1505,7 +1483,6 @@ function apiGetOrderInfo(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else if (isset($get['order_id'])){
@@ -1517,8 +1494,8 @@ function apiGetOrderInfo(){
          o.customers_telephone as telephone, 
          o.date_purchased as date_add, 
          o.order_total as total, 
-         s.orders_status_name as status FROM orders o 
-         INNER JOIN orders_status s ON o.orders_status=s.orders_status_id 
+         s.orders_status_name as status FROM " . TABLE_ORDERS . " o 
+         INNER JOIN " . TABLE_ORDERS_STATUS . " s ON o.orders_status=s.orders_status_id 
          WHERE o.orders_id=$order_id";
 
         $order_info = array();
@@ -1533,13 +1510,11 @@ function apiGetOrderInfo(){
             $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
     }
     else{
         $response = json_encode(['error' => "cannot find order with id = 0", 'status' => false, 'version' => API_VERSION]);
 
-        //echo $response;
         return $response;
     }
 }
@@ -1550,7 +1525,6 @@ function apiGetPaymentAndDelivery(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else {
@@ -1561,7 +1535,7 @@ function apiGetPaymentAndDelivery(){
             delivery_street_address, 
             delivery_city, 
             delivery_state, 
-            delivery_country FROM orders 
+            delivery_country FROM " . TABLE_ORDERS . " 
              WHERE orders_id=$order_id";
 
             $orders_info = array();
@@ -1581,14 +1555,12 @@ function apiGetPaymentAndDelivery(){
                 $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
             }
 
-            //echo $response;
             return $response;
         }
 
         else{
             $response = json_encode(['error' => "cannot find order with id = 0", 'status' => false, 'version' => API_VERSION]);
 
-            //echo $response;
             return $response;
         }
     }
@@ -1600,7 +1572,6 @@ function apiGetOrderProducts(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else if (isset($get['order_id'])){
@@ -1611,8 +1582,8 @@ function apiGetOrderProducts(){
         o.products_quantity as quantity, 
         o.products_price as price, 
         o.products_id as product_id
-        FROM orders_products o 
-         INNER JOIN products p ON p.products_id=o.products_id
+        FROM " . TABLE_ORDERS . "_products o 
+         INNER JOIN " . TABLE_PRODUCTS . " p ON p.products_id=o.products_id
          WHERE o.orders_id=$order_id";
 
         $order_info = array();
@@ -1628,10 +1599,10 @@ function apiGetOrderProducts(){
 
             $total_order_price = array();
             $total_order_price['total_discount'] = 0;
-            $total_order_price['total_price'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT SUM(final_price*products_quantity) FROM orders_products WHERE orders_id=$order_id "))[0];
-            $total_order_price['currency_code'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT currency FROM orders WHERE orders_id=$order_id"))[0];
-            $total_order_price['shipping_price'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT o.order_total-SUM(p.final_price*p.products_quantity) FROM orders o INNER JOIN orders_products p ON o.orders_id=p.orders_id WHERE o.orders_id=$order_id"))[0];
-            $total_order_price['total'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT order_total FROM orders WHERE orders_id=$order_id"))[0];
+            $total_order_price['total_price'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT SUM(final_price*products_quantity) FROM " . TABLE_ORDERS . "_products WHERE orders_id=$order_id "))[0];
+            $total_order_price['currency_code'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT currency FROM " . TABLE_ORDERS . " WHERE orders_id=$order_id"))[0];
+            $total_order_price['shipping_price'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT o.order_total-SUM(p.final_price*p.products_quantity) FROM " . TABLE_ORDERS . " o INNER JOIN " . TABLE_ORDERS_PRODUCTS . " p ON o.orders_id=p.orders_id WHERE o.orders_id=$order_id"))[0];
+            $total_order_price['total'] = mysqli_fetch_array(mysqli_query($db->link, "SELECT order_total FROM " . TABLE_ORDERS . " WHERE orders_id=$order_id"))[0];
 
             $response = json_encode(['response' => ['products' => $order_info, 'total_order_price' => $total_order_price], 'status' => true, 'version' => API_VERSION]);
         }
@@ -1639,13 +1610,11 @@ function apiGetOrderProducts(){
             $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
     }
     else{
         $response = json_encode(['error' => "cannot find order with id = 0", 'status' => false, 'version' => API_VERSION]);
 
-        //echo $response;
         return $response;
     }
 }
@@ -1656,7 +1625,6 @@ function apiGetOrderHistory(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else {
@@ -1666,8 +1634,8 @@ function apiGetOrderHistory(){
             $sql = "SELECT h.orders_status_name as name, 
              s.orders_status_id as order_status_id, 
              s.date_added as date_add, 
-             s.comments as comment FROM orders_status h 
-             INNER JOIN orders_status_history s ON h.orders_status_id=s.orders_status_id 
+             s.comments as comment FROM " . TABLE_ORDERS . "_status h 
+             INNER JOIN " . TABLE_ORDERS_STATUS_HISTORY . " s ON h.orders_status_id=s.orders_status_id 
              WHERE s.orders_id=$order_id";
 
             $order_info = array();
@@ -1688,13 +1656,11 @@ function apiGetOrderHistory(){
                 $response = json_encode(['error' => "cannot find order with id = $order_id", 'status' => false, 'version' => API_VERSION]);
             }
 
-            //echo $response;
             return $response;
         }
         else{
             $response = json_encode(['error' => "cannot find order with id = ", 'status' => false, 'version' => API_VERSION]);
 
-            //echo $response;
             return $response;
         }
     }
@@ -1705,7 +1671,6 @@ function apiGetClientInfo(){
     global $db;
 
     if (validToken($get['token'])){
-        echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
 
@@ -1719,10 +1684,10 @@ function apiGetClientInfo(){
          COUNT(o.order_total) quantity,
          c.customers_email_address as email,
          c.customers_telephone as telephone,
-         (SELECT COUNT(*) FROM orders WHERE orders_status=3 AND customers_id=$client_id  ) as completed,
+         (SELECT COUNT(*) FROM " . TABLE_ORDERS . " WHERE orders_status=3 AND customers_id=$client_id  ) as completed,
          o.currency as currency_code
-        FROM customers c 
-        INNER JOIN orders o ON c.customers_id=o.customers_id 
+        FROM " . TABLE_CUSTOMERS . " c 
+        INNER JOIN " . TABLE_ORDERS . " o ON c.customers_id=o.customers_id 
         WHERE c.customers_id=$client_id";
 
         $client = mysqli_fetch_assoc(mysqli_query($db->link, $sql));
@@ -1736,12 +1701,10 @@ function apiGetClientInfo(){
 
             $end = json_encode($response);
 
-            echo($end);
             return $end;
         }
         else {
 
-            echo json_encode(['status' => false, 'version' => API_VERSION]);
             return json_encode(['status' => false, 'version' => API_VERSION]);
         }
     }
@@ -1752,8 +1715,7 @@ function apiGetClientOrders(){
     global $db;
 
     if (validToken($get['token'])){
-        echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
-        return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
+        return json_encode (['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
 
     else {
@@ -1780,8 +1742,8 @@ function apiGetClientOrders(){
          o.currency as currency_code,
          o.order_total as total, 
          o.date_purchased as date_added
-        FROM orders o 
-        INNER JOIN orders_status s ON o.orders_status=s.orders_status_id 
+        FROM " . TABLE_ORDERS . " o 
+        INNER JOIN " . TABLE_ORDERS_STATUS . " s ON o.orders_status=s.orders_status_id 
         WHERE o.customers_id=$client_id ";
         if($filter)
             $sql .= "ORDER BY $filter DESC";
@@ -1804,12 +1766,9 @@ function apiGetClientOrders(){
 
             $end = json_encode($response);
 
-            echo($end);
             return $end;
         }
         else {
-
-            echo json_encode(['status' => false, 'version' => API_VERSION]);
             return json_encode(['status' => false, 'version' => API_VERSION]);
         }
     }
@@ -1821,7 +1780,6 @@ function apiGetProducts(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else{
@@ -1872,7 +1830,6 @@ function apiGetProducts(){
             $response = json_encode(['response' => ['products' => []], 'status' => true, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
 
     }
@@ -1884,7 +1841,6 @@ function apiGetProductInfo(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else{
@@ -1959,7 +1915,6 @@ function apiGetProductInfo(){
             $response = json_encode(['error' => "Not one product not found", 'status' => false, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
 
     }
@@ -1971,7 +1926,6 @@ function apiChangeStatus(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else{
@@ -2004,7 +1958,6 @@ function apiChangeStatus(){
             $response = json_encode(['error' => "Missing some params", 'status' => false, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
 
     }
@@ -2017,8 +1970,8 @@ function apiChangeOrderDelivery(){
     {
         $token = $get['token'];
         $order_id = (int)$get['order_id'];
-        $city = mysqli_fetch_row(mysqli_query($db->link, "SELECT delivery_city FROM orders WHERE orders_id=$order_id"))[0];
-        $address = mysqli_fetch_row(mysqli_query($db->link, "SELECT delivery_address FROM orders WHERE orders_id=$order_id"))[0];
+        $city = mysqli_fetch_row(mysqli_query($db->link, "SELECT delivery_city FROM " . TABLE_ORDERS . " WHERE orders_id=$order_id"))[0];
+        $address = mysqli_fetch_row(mysqli_query($db->link, "SELECT delivery_address FROM " . TABLE_ORDERS . " WHERE orders_id=$order_id"))[0];
 
         if (isset($get['city']))
             $city = $get['city'];
@@ -2026,22 +1979,18 @@ function apiChangeOrderDelivery(){
             $address = $get['address'];
 
         if (validToken($token) == null) {
-            if (mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM orders  WHERE orders_id=$order_id"))) {
-                $change_order_delivery_query = "UPDATE orders SET delivery_street_address='$address', delivery_city='$city' WHERE orders_id=$order_id";
+            if (mysqli_fetch_array(mysqli_query($db->link, "SELECT * FROM " . TABLE_ORDERS . "  WHERE orders_id=$order_id"))) {
+                $change_order_delivery_query = "UPDATE " . TABLE_ORDERS . " SET delivery_street_address='$address', delivery_city='$city' WHERE orders_id=$order_id";
 
                 $query = mysqli_query($db->link, $change_order_delivery_query);
 
 
-                //echo json_encode(['status' => true, 'version' => API_VERSION]);
                 return json_encode(['status' => true, 'version' => API_VERSION]);
             } else {
 
-                //echo json_encode(['error' => 'Can not change the address', 'status' => false, 'version' => API_VERSION]);
                 return json_encode(['error' => 'Can not change the address', 'status' => false, 'version' => API_VERSION]);
             }
         } else {
-
-            //echo json_encode(['error' => validToken($token), 'status' => false, 'version' => API_VERSION]);
 
             return json_encode(['error' => validToken($token), 'status' => false, 'version' => API_VERSION]);
         }
@@ -2055,7 +2004,6 @@ function apiGetCategories(){
     global $db;
 
     if (validToken($get['token'])){
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else{
@@ -2066,11 +2014,11 @@ function apiGetCategories(){
         $i = 0;
         while ($row = $get_categories->fetch_assoc()){
             array_push($categories, $row);
-            $sql_category = "SELECT * FROM ".TABLE_CATEGORIES." WHERE parent_id=".$categories[$i]['id'];
             $categories[$i]['parent'] = false;
-            if (mysqli_fetch_assoc(mysqli_query($db->link, $sql_category))){
-                $categories[$i]['parent'] = true;
-            }
+//            $sql_category = "SELECT * FROM ".TABLE_CATEGORIES." WHERE parent_id=".$categories[$i]['category_id'];
+//            if (mysqli_fetch_assoc(mysqli_query($db->link, $sql_category))){
+//                $categories[$i]['parent'] = true;
+//            }
             $i++;
         }
 
@@ -2091,7 +2039,6 @@ function apiUpdateProduct(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else{
@@ -2118,8 +2065,7 @@ function apiUpdateProduct(){
         $product_category = $get['categories'];
 
         if (isset($_FILES['images'])) {
-            $old_image_name = mysqli_fetch_row($db->link, "SELECT products_image FROM products WHERE products_id=$product_id")[0];
-
+            $old_image_name = mysqli_fetch_row($db->link, "SELECT products_image FROM " . TABLE_PRODUCTS . " WHERE products_id=$product_id")[0];
             unlink($old_image_name);
 
             $product_image = $_FILES['images']['name'];
@@ -2147,7 +2093,6 @@ function apiUpdateProduct(){
         }
 
         $sql_first .= " Where products_id=$product_id";
-        
         $stat_first = mysqli_query($db->link, $sql_first);
 
         $sql_second = "Update ".TABLE_PRODUCTS_DESCRIPTION." Set 
@@ -2166,7 +2111,7 @@ function apiUpdateProduct(){
             move_uploaded_file($tmp_name, DIR_WS_IMAGES.$product_image_name);
         }
         $image = '';
-        $query = mysqli_query($db->link, "SELECT products_image FROM products WHERE products_id = $product_id");
+        $query = mysqli_query($db->link, "SELECT products_image FROM " . TABLE_PRODUCTS . " WHERE products_id = $product_id");
         if ($query) {
             $image = array_shift($query->fetch_row());
         }
@@ -2193,7 +2138,6 @@ function apiUpdateProduct(){
             $response = json_encode(['error' => "Can not found product with id = $product_id", 'status' => false, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
 
     }
@@ -2205,7 +2149,6 @@ function apiCreateProduct(){
 
     if (validToken($get['token'])){
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     }
     else{
@@ -2281,7 +2224,7 @@ function apiCreateProduct(){
         }
 
         $image = '';
-        $query = mysqli_query($db->link, "SELECT products_image FROM products WHERE products_id = $product_id");
+        $query = mysqli_query($db->link, "SELECT products_image FROM " . TABLE_PRODUCTS . " WHERE products_id = $product_id");
         if ($query) {
             $image = array_shift($query->fetch_row());
         }
@@ -2319,7 +2262,6 @@ function apiCreateProduct(){
             $response = json_encode(['error' => "Not one product not found", 'status' => false, 'version' => API_VERSION]);
         }
 
-        //echo $response;
         return $response;
 
     }
@@ -2329,10 +2271,8 @@ function apiMainImage()
 {
     $get = $_REQUEST;
     global $db;
-
     if (validToken($get['token'])) {
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     } else {
 
@@ -2340,7 +2280,7 @@ function apiMainImage()
 
 
         if (isset($_FILES['images'])) {
-            $old_image_name = mysqli_fetch_row($db->link, "SELECT products_image FROM products WHERE products_id=$product_id")[0];
+            $old_image_name = mysqli_fetch_row($db->link, "SELECT products_image FROM " . TABLE_PRODUCTS . " WHERE products_id=$product_id")[0];
 
             unlink($old_image_name);
 
@@ -2356,10 +2296,8 @@ function apiMainImage()
 
 
         if ($query) {
-            //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
             return json_encode(["status" => true, 'version' => API_VERSION]);
         } else {
-            //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
             return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
         }
     }
@@ -2371,13 +2309,12 @@ function apiDeleteImage(){
 
     if (validToken($get['token'])) {
 
-        //echo json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
         return json_encode(['error' => validToken($get['token']), 'status' => false, 'version' => API_VERSION]);
     } else {
 
         $product_id = $get['product_id'];
 
-            $old_image_name = mysqli_fetch_row(mysqli_query($db->link, "SELECT products_image FROM products WHERE products_id=$product_id"))[0];
+            $old_image_name = mysqli_fetch_row(mysqli_query($db->link, "SELECT products_image FROM " . TABLE_PRODUCTS . " WHERE products_id=$product_id"))[0];
 
             unlink(DIR_WS_IMAGES.$old_image_name);
 
@@ -2387,10 +2324,8 @@ function apiDeleteImage(){
 
 
         if ($query) {
-            //echo json_encode(['response' => ["status" => true, 'version' => API_VERSION]]);
             return json_encode(["status" => true, 'version' => API_VERSION]);
         } else {
-            //echo json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
             return json_encode(['error' => 'Missing some params', 'version' => API_VERSION, 'status' => false]);
         }
     }
@@ -2418,40 +2353,11 @@ function validToken($token)
     return $error;
 }
 
-function getTotalOrders($data = array())
-{
-    global $db;
-    if (isset($data['filter'])) {
-        $sql = "SELECT date_added FROM `" . DB_PREFIX . "order` WHERE order_status_id > '0'";
-
-        if ($data['filter'] == 'day') {
-            $sql .= " AND DATE(date_added) = DATE(NOW())";
-        } elseif ($data['filter'] == 'week') {
-            $date_start = strtotime('-' . date('w') . ' days');
-            $sql .= "AND WEEK(date_added) = WEEK(NOW()) ";
-
-        } elseif ($data['filter'] == 'month') {
-            $sql .= "AND MONTH(date_added) = MONTH(NOW()) ";
-
-        } elseif ($data['filter'] == 'year') {
-            $sql .= "AND YEAR(date_added) = YEAR(NOW())";
-        } else {
-            return false;
-        }
-    } else {
-        $sql = "SELECT COUNT(*) FROM `" . DB_PREFIX . "order` WHERE order_status_id > '0'";
-    }
-
-    $query = mysqli_query($db->link, $sql);
-
-    return $query;
-}
-
 function getStatuses(){
     global $db;
 
     $statuses = array();
-    $query = "SELECT orders_status_name as name, orders_status_id as order_status_id, language_id FROM orders_status";
+    $query = "SELECT orders_status_name as name, orders_status_id as order_status_id, language_id FROM " . TABLE_ORDERS . "_status";
 
     $resp = mysqli_query($db->link, $query);
     while ($row = $resp->fetch_assoc()){
@@ -2462,11 +2368,11 @@ function getStatuses(){
 
 function getCurrency(){
     global $db;
-    return mysqli_fetch_row(mysqli_query($db->link, "SELECT configuration_value FROM configuration WHERE configuration_title='Default Currency'"))[0];
+    return mysqli_fetch_row(mysqli_query($db->link, "SELECT configuration_value FROM " . TABLE_CONFIGURATION . " WHERE configuration_title='Default Currency'"))[0];
 }
 
 function getTotalSum(){
     global $db;
-    return mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM orders"))[0];
+    return mysqli_fetch_row(mysqli_query($db->link, "SELECT SUM(order_total) FROM " . TABLE_ORDERS))[0];
 }
 

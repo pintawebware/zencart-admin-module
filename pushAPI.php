@@ -12,7 +12,7 @@ function sendNotifications()
     $order_query = "SELECT orders_id as order_id, 
                     order_total as total,
                     currency as currency_code  
-                    FROM orders WHERE orders_id=(SELECT MAX(orders_id) FROM orders)";
+                    FROM " . TABLE_ORDERS . " WHERE orders_id=(SELECT MAX(orders_id) FROM orders)";
 
 
 

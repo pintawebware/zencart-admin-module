@@ -1,15 +1,13 @@
 ZENCART-MOBILE-ADMIN 
 =====================
-Модуль для Zen cart версии 2.0.0.0 и выше, содержащий API для управления интернет-магазином с мобильного устройста.  
-***
 
-***
-###  Установка производится путем распаковывания архива модуля в корневой каталог сайта:
-***
-1. Скопируйте архив с модулем в корневой каталог сайта(там же где и index.php);
-2. Извлеките содержимое архива в ту же директорию;
-3. Отредактируйте файл index.php  корневой директории сайта:
-	-после строки "require('includes/application_top.php');" пропишите "include('pushAPI.php');".
+Module for Zen cart version 2.0.0 and higher, containing the API for managing the online store from a mobile device.
 
-***
 
+== Installation ==
+
+Installation is done by unpacking the module's archive into the root directory of the site:
+
+1. Copy the archive with the module to the root directory of the site (in the same place as index.php);
+2. Extract the contents of the archive to the same directory;
+3. Edit the index.php file of the root directory of the site: after the line "require('includes/application_top.php');" write "include ('pushAPI.php');".
